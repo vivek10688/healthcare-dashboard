@@ -19,7 +19,6 @@ jobs:
           extensions: mbstring, bcmath, sqlite3, dom, fileinfo
           coverage: none
 
-      # Use the normal .env instead of .env.testing (Laravel expects .env by default)
       - name: Copy example environment
         run: cp .env.example .env
 
@@ -35,6 +34,13 @@ jobs:
           echo "SESSION_DRIVER=array" >> .env
           echo "QUEUE_CONNECTION=sync" >> .env
           echo "MAIL_MAILER=log" >> .env
+
+      # 🧩 Add this block to bypass Vite error
+      - name: Disable Vite for tests
+        run: |
+          echo "VITE_DISABLED=true" >> .env
+          mkdir -p public/build
+          echo '{}' > public/build/manifest.json
 
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
