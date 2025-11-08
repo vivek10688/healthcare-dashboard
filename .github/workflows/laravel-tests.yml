@@ -8,20 +8,6 @@ jobs:
   laravel-tests:
     runs-on: ubuntu-latest
 
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: hsl_dashboard
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h localhost"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,7 +16,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: 8.2
-          extensions: mbstring, bcmath, pdo_mysql, dom, fileinfo
+          extensions: mbstring, bcmath, sqlite3, dom, fileinfo
           coverage: none
 
       - name: Copy example environment
@@ -41,38 +27,31 @@ jobs:
           echo "APP_ENV=testing" >> .env.testing
           echo "APP_DEBUG=true" >> .env.testing
           echo "APP_URL=http://localhost" >> .env.testing
-          echo "DB_CONNECTION=mysql" >> .env.testing
-          echo "DB_HOST=127.0.0.1" >> .env.testing
-          echo "DB_PORT=3306" >> .env.testing
-          echo "DB_DATABASE=hsl_dashboard" >> .env.testing
-          echo "DB_USERNAME=root" >> .env.testing
-          echo "DB_PASSWORD=root" >> .env.testing
+          echo "DB_CONNECTION=sqlite" >> .env.testing
+          echo "DB_DATABASE=:memory:" >> .env.testing
           echo "CACHE_DRIVER=array" >> .env.testing
           echo "SESSION_DRIVER=array" >> .env.testing
+          echo "SESSION_DOMAIN=localhost" >> .env.testing
           echo "QUEUE_CONNECTION=sync" >> .env.testing
 
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: Generate application key
-        run: php artisan key:generate --env=testing
-
-      - name: Prepare Laravel environment
+      - name: Prepare Laravel
         run: |
           php artisan config:clear
           php artisan cache:clear
           php artisan view:clear
           php artisan route:clear
+          php artisan key:generate --env=testing
           mkdir -p storage/framework/{views,cache,sessions}
           chmod -R 777 storage bootstrap/cache
 
-      - name: Run database migrations
+      - name: Run migrations
         run: php artisan migrate --env=testing --force
 
-      - name: Build frontend assets (for Vite)
-        run: |
-          npm ci
-          npm run build
+      - name: Debug database structure
+        run: php artisan tinker --env=testing --execute="print_r(Schema::getAllTables());"
 
-      - name: Run Laravel tests
-        run: php artisan test --env=testing --debug
+      - name: Run tests (verbose)
+        run: php artisan test --env=testing -v
