@@ -22,21 +22,19 @@ jobs:
       - name: Copy example environment
         run: cp .env.example .env.testing
 
-      - name: Configure SQLite for testing
+      - name: Configure environment for testing
         run: |
           echo "APP_ENV=testing" >> .env.testing
+          echo "APP_DEBUG=true" >> .env.testing
+          echo "APP_URL=http://localhost" >> .env.testing
           echo "DB_CONNECTION=sqlite" >> .env.testing
           echo "DB_DATABASE=:memory:" >> .env.testing
           echo "CACHE_DRIVER=array" >> .env.testing
           echo "SESSION_DRIVER=array" >> .env.testing
           echo "QUEUE_CONNECTION=sync" >> .env.testing
-          echo "MAIL_MAILER=log" >> .env.testing
 
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
-
-      - name: Generate application key
-        run: php artisan key:generate --env=testing
 
       - name: Prepare Laravel environment
         run: |
@@ -45,14 +43,11 @@ jobs:
           php artisan view:clear
           php artisan route:clear
           php artisan key:generate --env=testing
-          mkdir -p storage/framework/views
-          mkdir -p storage/framework/cache
-          mkdir -p storage/framework/sessions
-          chmod -R 777 storage
-
+          mkdir -p storage/framework/{views,cache,sessions}
+          chmod -R 777 storage bootstrap/cache
 
       - name: Run database migrations
         run: php artisan migrate --env=testing --force
 
-      - name: Run PHPUnit tests
-        run: php artisan test --env=testing
+      - name: Run Laravel tests
+        run: php artisan test --env=testing --debug
