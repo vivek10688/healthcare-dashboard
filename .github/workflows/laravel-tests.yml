@@ -54,4 +54,4 @@ jobs:
         run: php artisan tinker --env=testing --execute="print_r(Schema::getAllTables());"
 
       - name: Run tests (verbose)
-        run: php artisan test --env=testing -v
+        run: vendor/bin/phpunit --verbose --debug
