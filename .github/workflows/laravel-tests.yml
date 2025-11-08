@@ -1,67 +1,45 @@
-name: Laravel Tests
+name: Run Laravel Tests
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
 
 jobs:
   laravel-tests:
     runs-on: ubuntu-latest
 
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: hsl_dashboard
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h localhost -proot"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Set up PHP
+      - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
-          extensions: mbstring, bcmath, pdo_mysql, intl
+          php-version: 8.2
+          extensions: mbstring, bcmath, sqlite3, dom, fileinfo
           coverage: none
 
-      - name: Install Dependencies
+      - name: Copy example environment
+        run: cp .env.example .env.testing
+
+      - name: Configure SQLite for testing
         run: |
-          composer install --no-interaction --prefer-dist --optimize-autoloader
+          echo "APP_ENV=testing" >> .env.testing
+          echo "APP_KEY=base64:testingkeyhere" >> .env.testing
+          echo "DB_CONNECTION=sqlite" >> .env.testing
+          echo "DB_DATABASE=:memory:" >> .env.testing
+          echo "CACHE_DRIVER=array" >> .env.testing
+          echo "SESSION_DRIVER=array" >> .env.testing
+          echo "QUEUE_CONNECTION=sync" >> .env.testing
 
-      - name: Set Environment
-        run: |
-          cp .env.example .env
-          php artisan key:generate
-        env:
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: hsl_dashboard
-          DB_USERNAME: root
-          DB_PASSWORD: root
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: Run Migrations
-        run: php artisan migrate --force
-        env:
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: hsl_dashboard
-          DB_USERNAME: root
-          DB_PASSWORD: root
+      - name: Generate application key
+        run: php artisan key:generate --env=testing
 
-      - name: Run Tests
+      - name: Run database migrations
+        run: php artisan migrate --env=testing --force
+
+      - name: Run PHPUnit tests
         run: php artisan test
-        env:
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: hsl_dashboard
-          DB_USERNAME: root
-          DB_PASSWORD: root
