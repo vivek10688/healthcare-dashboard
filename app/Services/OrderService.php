@@ -4,23 +4,39 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\Product;
+use Illuminate\Support\Facades\DB;
+use Exception;
 
 class OrderService
 {
     public function createOrder(array $data, $user)
     {
-        $product = Product::findOrFail($data['product_id']);
-        $total = $product->price * $data['quantity'];
+        return DB::transaction(function () use ($data, $user) {
+            // Lock the product record to prevent concurrent stock updates
+            $product = Product::where('id', $data['product_id'])
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        // Update stock
-        $product->decrement('stock', $data['quantity']);
+            // Check if enough stock is available
+            if ($product->stock < $data['quantity']) {
+                throw new Exception('Insufficient stock available for this product.');
+            }
 
-        // Save order
-        return Order::create([
-            'user_id' => $user->id,
-            'product_id' => $product->id,
-            'quantity' => $data['quantity'],
-            'total_price' => $total,
-        ]);
+            // Deduct stock safely
+            $product->decrement('stock', $data['quantity']);
+
+            // Calculate total
+            $total = $product->price * $data['quantity'];
+
+            // Create the order
+            $order = Order::create([
+                'user_id'     => $user->id,
+                'product_id'  => $product->id,
+                'quantity'    => $data['quantity'],
+                'total_price' => $total,
+            ]);
+
+            return $order;
+        });
     }
 }

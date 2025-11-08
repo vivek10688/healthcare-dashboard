@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Services\OrderService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
@@ -39,6 +40,7 @@ class OrderController extends Controller
     public function store(StoreOrderRequest $request, OrderService $service)
     {
         $this->authorize('create', Order::class);
+
         $order = $service->createOrder($request->validated(), auth()->user());
 
         Mail::to(auth()->user()->email)->send(new OrderPlaced($order));

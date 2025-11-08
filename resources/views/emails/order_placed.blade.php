@@ -11,7 +11,7 @@
     <ul>
         <li>Product: {{ $order->product->name }}</li>
         <li>Quantity: {{ $order->quantity }}</li>
-        <li>Total Amount: ${{ number_format($order->total_amount, 2) }}</li>
+        <li>Total Price: ${{ number_format($order->total_amount, 2) }}</li>
     </ul>
     <p>Thank you for your order!</p>
 </body>
