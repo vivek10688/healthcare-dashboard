@@ -50,8 +50,10 @@ jobs:
       - name: Run migrations
         run: php artisan migrate --env=testing --force
 
+      # Optional: Debug database schema if migrations fail
       - name: Debug database structure
+        if: failure()
         run: php artisan tinker --env=testing --execute="print_r(Schema::getAllTables());"
 
-      - name: Run tests (verbose)
-        run: vendor/bin/phpunit --verbose --debug
+      - name: Run tests (with detailed output)
+        run: vendor/bin/phpunit --display-deprecations --display-errors --display-warnings
