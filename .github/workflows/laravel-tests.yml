@@ -9,53 +9,57 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: 🧩 Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup PHP
+      - name: ⚙️ Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: 8.2
           extensions: mbstring, bcmath, sqlite3, dom, fileinfo
           coverage: none
 
-      - name: Copy example environment
-        run: cp .env.example .env
+      - name: 🧰 Copy example environment
+        run: cp .env.example .env.testing
 
-      - name: Configure environment for testing
+      - name: 🧪 Configure environment for testing
         run: |
-          echo "APP_ENV=testing" >> .env
-          echo "APP_KEY=base64:$(php -r "echo base64_encode(random_bytes(32));")" >> .env
-          echo "APP_DEBUG=true" >> .env
-          echo "APP_URL=http://localhost" >> .env
-          echo "DB_CONNECTION=sqlite" >> .env
-          echo "DB_DATABASE=:memory:" >> .env
-          echo "CACHE_DRIVER=array" >> .env
-          echo "SESSION_DRIVER=array" >> .env
-          echo "QUEUE_CONNECTION=sync" >> .env
-          echo "MAIL_MAILER=log" >> .env
+          echo "APP_ENV=testing" >> .env.testing
+          echo "APP_DEBUG=true" >> .env.testing
+          echo "APP_URL=http://localhost" >> .env.testing
+          echo "DB_CONNECTION=sqlite" >> .env.testing
+          echo "DB_DATABASE=:memory:" >> .env.testing
+          echo "CACHE_DRIVER=array" >> .env.testing
+          echo "SESSION_DRIVER=array" >> .env.testing
+          echo "QUEUE_CONNECTION=sync" >> .env.testing
 
-      # 🧩 Add this block to bypass Vite error
-      - name: Disable Vite for tests
-        run: |
-          echo "VITE_DISABLED=true" >> .env
-          mkdir -p public/build
-          echo '{}' > public/build/manifest.json
-
-      - name: Install Composer dependencies
+      - name: 📦 Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: Prepare Laravel environment
+      - name: 🧱 Build frontend assets for Vite
+        run: |
+          npm ci
+          npm run build
+
+      # (OPTIONAL fallback if vite build fails — uncomment if needed)
+      # - name: 🪄 Create dummy Vite manifest (fallback)
+      #   if: failure()
+      #   run: |
+      #     mkdir -p public/build
+      #     echo '{"resources/css/app.css":{"file":"app.css"},"resources/js/app.js":{"file":"app.js"}}' > public/build/manifest.json
+
+      - name: 🧹 Prepare Laravel environment
         run: |
           php artisan config:clear
           php artisan cache:clear
           php artisan view:clear
           php artisan route:clear
-          mkdir -p storage/framework/{views,cache,sessions,testing}
+          php artisan key:generate --env=testing
+          mkdir -p storage/framework/{views,cache,sessions}
           chmod -R 777 storage bootstrap/cache
 
-      - name: Run database migrations
-        run: php artisan migrate --force
+      - name: 🗃️ Run database migrations
+        run: php artisan migrate --env=testing --force
 
-      - name: Run Laravel tests
-        run: php artisan test --debug
+      - name: 🧾 Run Laravel Tests
+        run: php artisan test --env=testing --debug
