@@ -34,6 +34,7 @@ class OrderService
                 'product_id'  => $product->id,
                 'quantity'    => $data['quantity'],
                 'total_price' => $total,
+                'status' => 'pending', 
             ]);
 
             return $order;
