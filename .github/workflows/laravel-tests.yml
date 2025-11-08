@@ -30,6 +30,7 @@ jobs:
           echo "CACHE_DRIVER=array" >> .env.testing
           echo "SESSION_DRIVER=array" >> .env.testing
           echo "QUEUE_CONNECTION=sync" >> .env.testing
+          echo "MAIL_MAILER=log" >> .env.testing
 
       - name: Install Composer dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
@@ -37,8 +38,15 @@ jobs:
       - name: Generate application key
         run: php artisan key:generate --env=testing
 
+      - name: Prepare environment
+        run: |
+          php artisan config:clear
+          php artisan view:clear
+          php artisan cache:clear
+          chmod -R 777 storage bootstrap/cache
+
       - name: Run database migrations
         run: php artisan migrate --env=testing --force
 
       - name: Run PHPUnit tests
-        run: php artisan test
+        run: php artisan test --env=testing
