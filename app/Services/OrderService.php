@@ -19,7 +19,10 @@ class OrderService
 
             // Check if enough stock is available
             if ($product->stock < $data['quantity']) {
-                throw new Exception('Insufficient stock available for this product.');
+                throw new \Illuminate\Validation\ValidationException(
+                    validator([], []),
+                    response()->json(['error' => 'Insufficient stock available for this product.'], 422)
+                );
             }
 
             // Deduct stock safely

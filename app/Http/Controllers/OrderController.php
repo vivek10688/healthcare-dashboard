@@ -13,17 +13,21 @@ use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
-  
+    public function __construct()
+    {
+        // Optional: automatically apply policy mappings for resource routes
+        $this->authorizeResource(Order::class, 'order');
+    }
 
     public function index()
     {
+        $this->authorize('viewAny', Order::class);
+
         $user = Auth::user();
 
         if ($user->isAdmin()) {
-            // Admin sees all orders
             $orders = Order::latest()->get();
         } else {
-            // Providers see only their own orders
             $orders = Order::where('user_id', $user->id)->latest()->get();
         }
 
@@ -32,8 +36,9 @@ class OrderController extends Controller
 
     public function create()
     {
-        $products = Product::where('stock', '>', 0)->get();
+        $this->authorize('create', Order::class);
 
+        $products = Product::where('stock', '>', 0)->get();
         return view('orders.create', compact('products'));
     }
 
@@ -41,7 +46,10 @@ class OrderController extends Controller
     {
         $this->authorize('create', Order::class);
 
-        $order = $service->createOrder($request->validated(), auth()->user());
+        DB::transaction(function () use ($request, $service, &$order) {
+            // Lock stock rows to avoid concurrent updates
+            $order = $service->createOrder($request->validated(), auth()->user());
+        });
 
         Mail::to(auth()->user()->email)->send(new OrderPlaced($order));
 
@@ -50,22 +58,34 @@ class OrderController extends Controller
 
     public function dispatch(Order $order)
     {
-        // Only isAdmin can do this, extra check
         $this->authorize('dispatch', $order);
-        $order->update(['status' => 'dispatched']);
+
+        DB::transaction(function () use ($order) {
+            $order->update(['status' => 'dispatched']);
+        });
 
         return redirect()->back()->with('success', 'Order dispatched successfully...');
     }
 
     public function deliver(Order $order)
     {
-        // Optional: Check if the authenticated user is the owner of this order
-        if ($order->user_id !== auth()->id()) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorize('update', $order);
 
-        $order->update(['status' => 'delivered']);
+        DB::transaction(function () use ($order) {
+            $order->update(['status' => 'delivered']);
+        });
 
         return redirect()->back()->with('success', 'Order marked as delivered...');
+    }
+
+    public function destroy(Order $order)
+    {
+        $this->authorize('delete', $order);
+
+        DB::transaction(function () use ($order) {
+            $order->delete();
+        });
+
+        return redirect()->back()->with('success', 'Order deleted successfully...');
     }
 }

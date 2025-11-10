@@ -31,4 +31,9 @@ class OrderPolicy
     {
         return $user->role === 'admin';
     }
+
+    public function viewAny(User $user)
+    {
+        return in_array($user->role, ['admin', 'provider']);
+    }
 }
